@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="Geometry Dash casero: 5 niveles con modo Wave (volar) y modo Cubo (salto clásico).">
+<meta name="theme-color" content="#001a3d">
 <title>Geometry Dash - Wave + Cubo clásico</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,14 +24,19 @@
   }
   #game {
     position: relative;
-    width: 100%;
-    max-width: 1000px;
-    height: 100%;
-    max-height: 560px;
+    /* Tamaño lógico fijo: el JS asume 1000x560, así que en vez de estirar
+       el contenedor lo escalamos para que quepa en cualquier pantalla. */
+    width: 1000px;
+    height: 560px;
+    flex: none;
+    transform-origin: center center;
     overflow: hidden;
     background: #001a3d;
     cursor: pointer;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
   }
   #bgGrid {
     position: absolute;
@@ -412,6 +420,14 @@
     background: rgba(0,0,0,0.6);
     transition: all 0.3s;
   }
+  #rotateHint {
+    display: none;
+    color: #ffdd00 !important;
+    font-size: 15px !important;
+    margin-top: 16px;
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ffdd00;
+  }
+  body.portrait #rotateHint { display: block; }
   #modeIndicator.cube {
     color: #ffdd00;
     border-color: #ffdd00;
@@ -519,6 +535,7 @@
       <h2>WAVE + CUBO</h2>
       <p>ELIGE UN NIVEL</p>
       <div id="levelList"></div>
+      <p id="rotateHint">📱 GIRA EL TELÉFONO PARA JUGAR EN GRANDE</p>
     </div>
   </div>
 </div>
@@ -606,8 +623,10 @@ function playNote(freq, duration = 0.12, type = 'square', vol = 0.05) {
 }
 
 function startMusic() {
-  if (musicInterval) return;
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // iOS crea el contexto suspendido: hay que reanudarlo tras un gesto del usuario.
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (musicInterval) return;
   musicBeat = 0;
   musicInterval = setInterval(() => {
     if (gameOver) return;
@@ -1119,13 +1138,33 @@ document.addEventListener('keyup', e => {
 game.addEventListener('mousedown', pressInput);
 game.addEventListener('mouseup', releaseInput);
 game.addEventListener('mouseleave', releaseInput);
-game.addEventListener('touchstart', e => { e.preventDefault(); pressInput(); });
-game.addEventListener('touchend', e => { e.preventDefault(); releaseInput(); });
+
+// En móvil, preventDefault() en touchstart cancela el click sintético. Los
+// botones (menú de niveles, reintentar...) están dentro de #game, así que hay
+// que dejar pasar sus toques o el juego nunca arranca en el teléfono.
+function isUiTouch(e) {
+  const t = e.target;
+  return !!(t && t.closest && t.closest('button'));
+}
+game.addEventListener('touchstart', e => {
+  if (isUiTouch(e)) return;
+  e.preventDefault();
+  pressInput();
+}, { passive: false });
+game.addEventListener('touchend', e => {
+  if (isUiTouch(e)) return;
+  e.preventDefault();
+  releaseInput();
+}, { passive: false });
+game.addEventListener('touchcancel', releaseInput);
 
 // =====================================================
 // ESTELA
 // =====================================================
 let trailTimer = 0;
+// En pantallas táctiles espaciamos el doble las partículas de estela: el mismo
+// efecto con la mitad de nodos, que es lo que ahoga a los móviles.
+const TRAIL_STEP = window.matchMedia('(hover: none)').matches ? 2 : 1;
 function spawnTrail() {
   if (mode === 'wave') {
     const t = document.createElement('div');
@@ -1332,7 +1371,7 @@ function loop(now) {
 
   // ---- ESTELA ----
   trailTimer++;
-  if (trailTimer >= (mode === 'wave' ? 2 : 4)) {
+  if (trailTimer >= (mode === 'wave' ? 2 : 4) * TRAIL_STEP) {
     trailTimer = 0;
     spawnTrail();
   }
@@ -1631,6 +1670,22 @@ function restart() {
 
 player.style.top = playerY + 'px';
 window.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+
+// =====================================================
+// AJUSTE A LA PANTALLA (móvil / tablet / escritorio)
+// =====================================================
+function fitViewport() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Nunca ampliamos por encima de 1x para no perder nitidez en escritorio.
+  const scale = Math.min(vw / 1000, vh / GAME_H, 1);
+  game.style.transform = 'scale(' + scale + ')';
+  document.body.classList.toggle('portrait', vh > vw);
+}
+fitViewport();
+window.addEventListener('resize', fitViewport);
+window.addEventListener('orientationchange', fitViewport);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fitViewport);
 </script>
 </body>
 </html>
