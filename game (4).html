@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Geometry Dash - Wave + Cubo clásico</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Arial Black', Arial, sans-serif;
+  }
+  #wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+  }
+  #game {
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    height: 100%;
+    max-height: 560px;
+    overflow: hidden;
+    background: #001a3d;
+    cursor: pointer;
+    user-select: none;
+  }
+  #bgGrid {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 49px, rgba(0,180,255,0.35) 49px 50px),
+      repeating-linear-gradient(0deg, transparent 0 49px, rgba(0,180,255,0.25) 49px 50px);
+    animation: bgScroll 0.5s linear infinite;
+  }
+  @keyframes bgScroll {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: -50px 0, 0 0; }
+  }
+  #bgGlow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,150,255,0.35), transparent 70%);
+    pointer-events: none;
+  }
+  #ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(#0a0a1a, #000);
+    border-top: 4px solid #fff;
+    box-shadow: 0 -5px 25px #00aaff;
+    z-index: 2;
+  }
+  #ceiling {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(#000, #0a0a1a);
+    border-bottom: 4px solid #fff;
+    box-shadow: 0 5px 25px #00aaff;
+    z-index: 2;
+  }
+  #player {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    z-index: 10;
+    left: 180px;
+  }
+  #player .arrowShape {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #ff2d95, #ff0080);
+    clip-path: polygon(50% 0%, 100% 50%, 75% 50%, 75% 100%, 25% 100%, 25% 50%, 0% 50%);
+    filter: drop-shadow(0 0 12px #ff2d95) drop-shadow(0 0 20px #ff0080);
+    display: block;
+  }
+  #player .centerDot {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px #fff, 0 0 20px #ff2d95;
+    z-index: 2;
+    display: block;
+  }
+  #player .cubeShape {
+    position: absolute;
+    inset: 0;
+    background: #ffdd00;
+    border: 4px solid #000;
+    border-radius: 4px;
+    box-shadow: 0 0 25px #ffdd00, 0 0 40px rgba(255,221,0,0.5);
+    display: none;
+  }
+  #player .cubeShape::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    background: #ff8800;
+    border: 3px solid #000;
+    border-radius: 2px;
+  }
+  #player.cubeMode .arrowShape,
+  #player.cubeMode .centerDot { display: none; }
+  #player.cubeMode .cubeShape { display: block; }
+
+  .waveTrail {
+    position: absolute;
+    width: 5px; height: 5px;
+    background: #ff2d95;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9;
+    box-shadow: 0 0 8px #ff2d95, 0 0 15px #ff0080;
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  }
+  .cubeTrail {
+    position: absolute;
+    width: 44px; height: 44px;
+    background: rgba(255,221,0,0.4);
+    border: 3px solid rgba(0,0,0,0.3);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 9;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  .portal {
+    position: absolute;
+    width: 60px;
+    height: 140px;
+    z-index: 7;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: portalPulse 1s ease-in-out infinite;
+  }
+  @keyframes portalPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  .portal.cubePortal {
+    background: radial-gradient(ellipse at center, #ffdd00, #ff8800 60%, #aa5500);
+    border: 4px solid #fff;
+    box-shadow: 0 0 30px #ffdd00, 0 0 60px #ff8800, inset 0 0 25px rgba(255,255,255,0.6);
+  }
+  .portal.wavePortal {
+    background: radial-gradient(ellipse at center, #ff2d95, #ff0080 60%, #99004d);
+    border: 4px solid #fff;
+    box-shadow: 0 0 30px #ff2d95, 0 0 60px #ff0080, inset 0 0 25px rgba(255,255,255,0.6);
+  }
+  .portal .portalIcon {
+    font-size: 32px;
+    color: #fff;
+    text-shadow: 0 0 10px #fff, 0 0 20px #000;
+    z-index: 2;
+    animation: iconSpin 2s linear infinite;
+  }
+  @keyframes iconSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .obstacle {
+    position: absolute;
+    background: #000;
+    border: 4px solid #fff;
+    border-radius: 4px;
+    z-index: 6;
+    box-shadow: 0 0 15px rgba(255,255,255,0.6);
+  }
+  .obstacle.spikeUp::after {
+    content: '';
+    position: absolute;
+    bottom: 100%; left: 0;
+    width: 100%; height: 35px;
+    background: linear-gradient(180deg, #fff, #000);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    filter: drop-shadow(0 0 6px #fff);
+  }
+  .obstacle.spikeDown::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 0;
+    width: 100%; height: 35px;
+    background: linear-gradient(0deg, #fff, #000);
+    clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+    filter: drop-shadow(0 0 6px #fff);
+  }
+  .floorSpike {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    z-index: 6;
+  }
+  .floorSpike::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #ff0055, #800020);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    filter: drop-shadow(0 0 12px #ff0055);
+  }
+  .floorSpike::after {
+    content: '';
+    position: absolute;
+    inset: 8px 8px 8px 8px;
+    background: linear-gradient(180deg, #ff5599, #cc0044);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  }
+  .ceilingSpike {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    z-index: 6;
+  }
+  .ceilingSpike::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(0deg, #ff0055, #800020);
+    clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+    filter: drop-shadow(0 0 12px #ff0055);
+  }
+  .ceilingSpike::after {
+    content: '';
+    position: absolute;
+    inset: 8px 8px 8px 8px;
+    background: linear-gradient(0deg, #ff5599, #cc0044);
+    clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  }
+  .floorBlock {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: #1a1a2e;
+    border: 4px solid #000;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(0,229,255,0.5), inset 0 0 0 3px #00e5ff;
+    z-index: 6;
+  }
+  .floorBlock::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    background: #00e5ff;
+    border: 3px solid #000;
+    border-radius: 2px;
+  }
+
+  #attempt {
+    position: absolute;
+    top: 70px; left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 20px;
+    text-shadow: 3px 3px 0 #000, 0 0 15px #ff2d95;
+    z-index: 20;
+    letter-spacing: 2px;
+  }
+  #progressBar {
+    position: absolute;
+    top: 100px; left: 50%;
+    transform: translateX(-50%);
+    width: 60%; height: 20px;
+    background: rgba(0,0,0,0.7);
+    border: 3px solid #fff;
+    border-radius: 4px;
+    overflow: hidden;
+    z-index: 20;
+  }
+  #progressFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ff2d95, #ff0080);
+    box-shadow: 0 0 15px #ff2d95;
+    transition: width 0.1s linear;
+  }
+  #progressText {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #attemptsCounter {
+    position: absolute;
+    top: 70px; right: 15px;
+    color: #fff;
+    font-size: 14px;
+    text-shadow: 2px 2px 0 #000, 0 0 10px #00aaff;
+    z-index: 20;
+  }
+  #pointsHud {
+    position: absolute;
+    top: 70px; left: 15px;
+    color: #ff2d95;
+    font-size: 16px;
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ff2d95;
+    z-index: 20;
+  }
+  #message {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 30;
+    flex-direction: column;
+  }
+  #message h1 {
+    color: #ff2d95;
+    font-size: 48px;
+    text-shadow: 4px 4px 0 #000, 0 0 30px #ff2d95;
+    margin-bottom: 15px;
+    letter-spacing: 3px;
+  }
+  #message p {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 25px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #message button {
+    padding: 15px 40px;
+    font-size: 20px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    background: #ff2d95;
+    color: #fff;
+    border: 4px solid #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 2px;
+    box-shadow: 0 6px 0 #99004d, 0 0 25px #ff2d95;
+    transition: transform 0.1s;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #message button:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #99004d, 0 0 25px #ff2d95;
+  }
+  #controls {
+    position: absolute;
+    bottom: 8px; left: 15px;
+    color: #fff;
+    font-size: 12px;
+    opacity: 0.7;
+    z-index: 15;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #startScreen {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 40;
+    cursor: pointer;
+  }
+  #startScreen h1 {
+    color: #ff2d95;
+    font-size: 48px;
+    text-shadow: 4px 4px 0 #000, 0 0 40px #ff2d95;
+    margin-bottom: 10px;
+    letter-spacing: 4px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  #startScreen h2 {
+    color: #00aaff;
+    font-size: 24px;
+    text-shadow: 3px 3px 0 #000, 0 0 20px #00aaff;
+    margin-bottom: 25px;
+    letter-spacing: 6px;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  #startScreen p {
+    color: #fff;
+    font-size: 16px;
+    text-shadow: 2px 2px 0 #000;
+    letter-spacing: 2px;
+  }
+  #modeIndicator {
+    position: absolute;
+    bottom: 15px; right: 15px;
+    color: #ff2d95;
+    font-size: 14px;
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ff2d95;
+    z-index: 20;
+    letter-spacing: 3px;
+    border: 2px solid #ff2d95;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.6);
+    transition: all 0.3s;
+  }
+  #modeIndicator.cube {
+    color: #ffdd00;
+    border-color: #ffdd00;
+    text-shadow: 2px 2px 0 #000, 0 0 10px #ffdd00;
+  }
+
+  #levelList {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+    width: 320px;
+  }
+  .levelBtn {
+    padding: 14px 20px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 16px;
+    background: #001a3d;
+    color: #fff;
+    border: 3px solid #00aaff;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 0 #004a80, 0 0 15px rgba(0,170,255,0.4);
+    transition: transform 0.1s, background 0.2s;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .levelBtn:hover { background: #002a5d; }
+  .levelBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #004a80; }
+  .levelBtn .levelBadge {
+    font-size: 12px;
+    color: #ffdd00;
+    text-shadow: 0 0 8px #ffdd00;
+  }
+  .levelBtn.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+    border-color: #555;
+    box-shadow: 0 4px 0 #222;
+  }
+  #messageActions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #messageActions button {
+    padding: 15px 30px;
+    font-size: 17px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    color: #fff;
+    border: 4px solid #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: transform 0.1s;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #retryBtn { background: #ff2d95; box-shadow: 0 6px 0 #99004d, 0 0 25px #ff2d95; }
+  #nextLevelBtn { background: #00c853; box-shadow: 0 6px 0 #006622, 0 0 25px #00c853; }
+  #menuBtn { background: #00aaff; box-shadow: 0 6px 0 #005580, 0 0 25px #00aaff; }
+  #messageActions button:active { transform: translateY(4px); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="game">
+    <div id="bgGrid"></div>
+    <div id="bgGlow"></div>
+    <div id="ceiling"></div>
+    <div id="ground"></div>
+    <div id="player">
+      <div class="arrowShape"></div>
+      <div class="centerDot"></div>
+      <div class="cubeShape"></div>
+    </div>
+
+    <div id="attempt">Nivel 1</div>
+    <div id="progressBar">
+      <div id="progressFill"></div>
+      <div id="progressText">0%</div>
+    </div>
+    <div id="attemptsCounter">Intentos: 1</div>
+    <div id="pointsHud">💎 0</div>
+    <div id="modeIndicator">WAVE</div>
+
+    <div id="controls">WAVE: mantén para subir · CUBO: clic para saltar (doble salto disponible) · R reinicia</div>
+
+    <div id="message">
+      <h1 id="msgTitle">¡INTENTO FALLIDO!</h1>
+      <p id="msgText"></p>
+      <div id="messageActions">
+        <button id="retryBtn" onclick="restart()">REINTENTAR</button>
+        <button id="nextLevelBtn" onclick="nextLevel()" style="display:none;">SIGUIENTE NIVEL</button>
+        <button id="menuBtn" onclick="goToMenu()">MENÚ DE NIVELES</button>
+      </div>
+    </div>
+
+    <div id="startScreen">
+      <h1>GEOMETRY DASH</h1>
+      <h2>WAVE + CUBO</h2>
+      <p>ELIGE UN NIVEL</p>
+      <div id="levelList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// GEOMETRY DASH - WAVE (volar) + CUBO (salto clásico)
+// =====================================================
+const game = document.getElementById('game');
+const player = document.getElementById('player');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const attemptEl = document.getElementById('attempt');
+const attemptsCounter = document.getElementById('attemptsCounter');
+const pointsHud = document.getElementById('pointsHud');
+const message = document.getElementById('message');
+const msgText = document.getElementById('msgText');
+const startScreen = document.getElementById('startScreen');
+const modeIndicator = document.getElementById('modeIndicator');
+
+const GAME_H = 560;
+const WALL_TOP = 60;
+const WALL_BOTTOM = 60;
+const PLAY_TOP = WALL_TOP;
+const PLAY_BOTTOM = GAME_H - WALL_BOTTOM;
+
+const PLAYER_SIZE = 44;
+const PLAYER_X = 180;
+const SPEED = 7;
+
+const WAVE_UP = 5.8;
+const WAVE_DOWN = 5.8;
+
+const GRAVITY = 0.9;
+const JUMP_POWER = 15;
+
+let playerY = GAME_H / 2 - PLAYER_SIZE / 2;
+let holding = false;
+let angle = 0;
+
+let mode = 'wave';
+let velocityY = 0;
+let onGround = false;
+let cubeRotation = 0;
+let rotating = false;
+let doubleJumpUsed = false;
+
+let gameOver = false;
+let started = false;
+let attempts = 1;
+let points = 0;
+let totalDistance = 0;
+
+// === Sistema de saltos pendientes ===
+// Los clics se acumulan aquí y el loop los consume cuando puede saltar.
+let pendingJumps = 0;
+
+// Bloqueo temporal tras cruzar portal (para evitar el clic que activó el portal)
+let portalCooldown = 0; // en frames
+
+// ---- Audio ----
+let audioCtx = null;
+let musicInterval = null;
+let musicBeat = 0;
+
+const melodyNotes = [
+  330, 392, 330, 349, 330, 392, 330, 349,
+  294, 349, 294, 330, 294, 349, 294, 330,
+  330, 392, 330, 349, 330, 392, 330, 349,
+  370, 440, 370, 494, 440, 370, 440, 494
+];
+
+function playNote(freq, duration = 0.12, type = 'square', vol = 0.05) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function startMusic() {
+  if (musicInterval) return;
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  musicBeat = 0;
+  musicInterval = setInterval(() => {
+    if (gameOver) return;
+    const note = melodyNotes[musicBeat % melodyNotes.length];
+    playNote(note, 0.1, 'square', 0.045);
+    if (musicBeat % 4 === 0) playNote(note / 2, 0.2, 'sawtooth', 0.07);
+    if (musicBeat % 2 === 0) playNote(7000, 0.03, 'triangle', 0.015);
+    musicBeat++;
+  }, 120);
+}
+
+function stopMusic() {
+  if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+}
+
+function playDeathSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.6);
+}
+
+function playJumpSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+function playPortalSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+// =====================================================
+// NIVELES
+// =====================================================
+const levelsData = [
+  {
+    name: 'Nivel 1',
+    subtitle: 'Iniciación',
+    length: 9000,
+    design: [
+      { x: 700,  type: 'top',    h: 130, spike: true },
+      { x: 950,  type: 'bottom', h: 130, spike: true },
+      { x: 1200, type: 'top',    h: 140, spike: false },
+      { x: 1400, type: 'bottom', h: 140, spike: true },
+      { x: 1650, type: 'top',    h: 160, spike: true },
+      { x: 1900, type: 'bottom', h: 160, spike: true },
+
+      { x: 2150, type: 'portalCube' },
+
+      { x: 2600, type: 'floorSpike' },
+      { x: 2850, type: 'floorSpike' },
+      { x: 2900, type: 'floorSpike' },
+      { x: 3150, type: 'floorBlock' },
+      { x: 3250, type: 'floorSpike' },
+      { x: 3500, type: 'floorSpike' },
+      { x: 3750, type: 'floorBlock' },
+      { x: 3850, type: 'floorSpike' },
+      { x: 4100, type: 'floorSpike' },
+      { x: 4150, type: 'floorSpike' },
+      { x: 4400, type: 'floorBlock' },
+      { x: 4500, type: 'floorSpike' },
+      { x: 4750, type: 'floorSpike' },
+      { x: 5000, type: 'floorSpike' },
+      { x: 5050, type: 'floorSpike' },
+      { x: 5300, type: 'floorBlock' },
+      { x: 5400, type: 'floorSpike' },
+      { x: 5650, type: 'floorSpike' },
+
+      { x: 5900, type: 'portalWave' },
+
+      { x: 6300, type: 'top',    h: 180, spike: true },
+      { x: 6300, type: 'bottom', h: 120, spike: true },
+      { x: 6600, type: 'top',    h: 220, spike: false },
+      { x: 6600, type: 'bottom', h: 90,  spike: true },
+      { x: 6900, type: 'bottom', h: 220, spike: false },
+      { x: 6900, type: 'top',    h: 90,  spike: true },
+      { x: 7200, type: 'top',    h: 170, spike: true },
+      { x: 7200, type: 'bottom', h: 170, spike: true },
+      { x: 7500, type: 'ceilingSpike' },
+      { x: 7750, type: 'floorSpike' },
+      { x: 8000, type: 'top',    h: 200, spike: true },
+      { x: 8000, type: 'bottom', h: 100, spike: true },
+      { x: 8300, type: 'floorSpike' },
+      { x: 8550, type: 'ceilingSpike' },
+      { x: 8800, type: 'floorSpike' },
+    ]
+  },
+  {
+    name: 'Nivel 2',
+    subtitle: 'Turbulencia',
+    length: 9400,
+    design: [
+      { x: 600,  type: 'top',    h: 150, spike: true },
+      { x: 850,  type: 'bottom', h: 150, spike: true },
+      { x: 1100, type: 'top',    h: 130, spike: false },
+      { x: 1100, type: 'bottom', h: 130, spike: true },
+      { x: 1350, type: 'top',    h: 170, spike: true },
+      { x: 1600, type: 'bottom', h: 170, spike: true },
+      { x: 1850, type: 'top',    h: 150, spike: true },
+      { x: 1850, type: 'bottom', h: 120, spike: false },
+
+      { x: 2100, type: 'portalCube' },
+
+      { x: 2500, type: 'floorSpike' },
+      { x: 2550, type: 'floorSpike' },
+      { x: 2800, type: 'floorBlock' },
+      { x: 2900, type: 'floorSpike' },
+      { x: 3100, type: 'ceilingSpike' },
+      { x: 3300, type: 'floorSpike' },
+      { x: 3350, type: 'floorSpike' },
+      { x: 3600, type: 'floorBlock' },
+      { x: 3700, type: 'floorSpike' },
+      { x: 3900, type: 'ceilingSpike' },
+      { x: 4100, type: 'floorSpike' },
+      { x: 4300, type: 'floorBlock' },
+      { x: 4400, type: 'floorSpike' },
+      { x: 4450, type: 'floorSpike' },
+
+      { x: 4700, type: 'portalWave' },
+
+      { x: 5100, type: 'top',    h: 160, spike: true },
+      { x: 5100, type: 'bottom', h: 160, spike: true },
+      { x: 5400, type: 'top',    h: 200, spike: false },
+      { x: 5400, type: 'bottom', h: 80,  spike: true },
+      { x: 5700, type: 'bottom', h: 200, spike: false },
+      { x: 5700, type: 'top',    h: 80,  spike: true },
+      { x: 6000, type: 'top',    h: 150, spike: true },
+      { x: 6000, type: 'bottom', h: 150, spike: true },
+
+      { x: 6300, type: 'portalCube' },
+
+      { x: 6650, type: 'floorSpike' },
+      { x: 6850, type: 'floorSpike' },
+      { x: 6900, type: 'floorSpike' },
+      { x: 7150, type: 'floorBlock' },
+      { x: 7250, type: 'floorSpike' },
+      { x: 7450, type: 'ceilingSpike' },
+      { x: 7650, type: 'floorSpike' },
+      { x: 7900, type: 'floorBlock' },
+      { x: 8000, type: 'floorSpike' },
+      { x: 8200, type: 'ceilingSpike' },
+      { x: 8400, type: 'floorSpike' },
+      { x: 8450, type: 'floorSpike' },
+    ]
+  },
+  {
+    name: 'Nivel 3',
+    subtitle: 'Caos',
+    length: 10600,
+    design: [
+      { x: 600,  type: 'top',    h: 140, spike: true },
+      { x: 600,  type: 'bottom', h: 140, spike: true },
+      { x: 900,  type: 'top',    h: 170, spike: true },
+      { x: 1100, type: 'bottom', h: 170, spike: true },
+      { x: 1300, type: 'top',    h: 150, spike: false },
+      { x: 1300, type: 'bottom', h: 150, spike: true },
+      { x: 1550, type: 'top',    h: 190, spike: true },
+      { x: 1750, type: 'bottom', h: 190, spike: true },
+
+      { x: 2000, type: 'portalCube' },
+
+      { x: 2350, type: 'floorSpike' },
+      { x: 2400, type: 'floorSpike' },
+      { x: 2600, type: 'ceilingSpike' },
+      { x: 2800, type: 'floorBlock' },
+      { x: 2900, type: 'floorSpike' },
+      { x: 3050, type: 'floorSpike' },
+
+      { x: 3300, type: 'portalWave' },
+
+      { x: 3650, type: 'top',    h: 160, spike: true },
+      { x: 3650, type: 'bottom', h: 150, spike: true },
+      { x: 3900, type: 'top',    h: 210, spike: false },
+      { x: 3900, type: 'bottom', h: 80,  spike: true },
+
+      { x: 4200, type: 'portalCube' },
+
+      { x: 4550, type: 'floorSpike' },
+      { x: 4750, type: 'floorSpike' },
+      { x: 4800, type: 'floorSpike' },
+      { x: 5000, type: 'floorBlock' },
+      { x: 5100, type: 'floorSpike' },
+      { x: 5300, type: 'ceilingSpike' },
+      { x: 5500, type: 'floorSpike' },
+      { x: 5550, type: 'floorSpike' },
+      { x: 5750, type: 'floorBlock' },
+      { x: 5850, type: 'floorSpike' },
+      { x: 6050, type: 'ceilingSpike' },
+
+      { x: 6350, type: 'portalWave' },
+
+      { x: 6700, type: 'top',    h: 180, spike: true },
+      { x: 6700, type: 'bottom', h: 130, spike: true },
+      { x: 6950, type: 'top',    h: 220, spike: false },
+      { x: 6950, type: 'bottom', h: 90,  spike: true },
+      { x: 7200, type: 'bottom', h: 220, spike: false },
+      { x: 7200, type: 'top',    h: 90,  spike: true },
+      { x: 7450, type: 'top',    h: 170, spike: true },
+      { x: 7450, type: 'bottom', h: 170, spike: true },
+
+      { x: 7750, type: 'portalCube' },
+
+      { x: 8100, type: 'floorSpike' },
+      { x: 8150, type: 'floorSpike' },
+      { x: 8350, type: 'floorBlock' },
+      { x: 8450, type: 'floorSpike' },
+      { x: 8650, type: 'ceilingSpike' },
+      { x: 8850, type: 'floorSpike' },
+      { x: 8900, type: 'floorSpike' },
+      { x: 9100, type: 'floorBlock' },
+      { x: 9200, type: 'floorSpike' },
+      { x: 9400, type: 'ceilingSpike' },
+      { x: 9600, type: 'floorSpike' },
+      { x: 9650, type: 'floorSpike' },
+      { x: 9850, type: 'floorBlock' },
+      { x: 9950, type: 'floorSpike' },
+      { x: 10150, type: 'ceilingSpike' },
+      { x: 10350, type: 'floorSpike' },
+    ]
+  },
+  {
+    name: 'Nivel 4',
+    subtitle: 'Presión',
+    length: 9500,
+    design: [
+      { x: 600,  type: 'top',    h: 160, spike: true },
+      { x: 850,  type: 'bottom', h: 160, spike: true },
+      { x: 1100, type: 'top',    h: 140, spike: true },
+      { x: 1100, type: 'bottom', h: 140, spike: false },
+      { x: 1350, type: 'top',    h: 180, spike: true },
+      { x: 1600, type: 'bottom', h: 180, spike: true },
+      { x: 1850, type: 'top',    h: 150, spike: false },
+      { x: 1850, type: 'bottom', h: 150, spike: true },
+      { x: 2100, type: 'top',    h: 200, spike: true },
+      { x: 2350, type: 'bottom', h: 200, spike: true },
+
+      { x: 2600, type: 'portalCube' },
+
+      { x: 3000, type: 'floorSpike' },
+      { x: 3050, type: 'floorSpike' },
+      { x: 3300, type: 'floorBlock' },
+      { x: 3400, type: 'floorSpike' },
+      { x: 3600, type: 'ceilingSpike' },
+      { x: 3800, type: 'floorSpike' },
+      { x: 3850, type: 'floorSpike' },
+      { x: 3900, type: 'floorSpike' },
+      { x: 4150, type: 'floorBlock' },
+      { x: 4250, type: 'floorSpike' },
+      { x: 4450, type: 'ceilingSpike' },
+      { x: 4650, type: 'floorSpike' },
+      { x: 4700, type: 'floorSpike' },
+
+      { x: 4950, type: 'portalWave' },
+
+      { x: 5300, type: 'top',    h: 170, spike: true },
+      { x: 5300, type: 'bottom', h: 170, spike: true },
+      { x: 5550, type: 'top',    h: 230, spike: false },
+      { x: 5550, type: 'bottom', h: 70,  spike: true },
+      { x: 5800, type: 'bottom', h: 230, spike: false },
+      { x: 5800, type: 'top',    h: 70,  spike: true },
+      { x: 6050, type: 'top',    h: 190, spike: true },
+      { x: 6050, type: 'bottom', h: 190, spike: true },
+      { x: 6300, type: 'top',    h: 210, spike: false },
+      { x: 6300, type: 'bottom', h: 90,  spike: true },
+
+      { x: 6600, type: 'portalCube' },
+
+      { x: 6950, type: 'floorSpike' },
+      { x: 7150, type: 'floorSpike' },
+      { x: 7200, type: 'floorSpike' },
+      { x: 7450, type: 'floorBlock' },
+      { x: 7550, type: 'floorSpike' },
+      { x: 7750, type: 'ceilingSpike' },
+      { x: 7950, type: 'floorSpike' },
+      { x: 8000, type: 'floorSpike' },
+      { x: 8200, type: 'floorBlock' },
+      { x: 8300, type: 'floorSpike' },
+      { x: 8500, type: 'ceilingSpike' },
+      { x: 8700, type: 'floorSpike' },
+      { x: 8750, type: 'floorSpike' },
+      { x: 8800, type: 'floorSpike' },
+    ]
+  },
+  {
+    name: 'Nivel 5',
+    subtitle: 'Límite',
+    length: 10700,
+    design: [
+      { x: 550,  type: 'top',    h: 150, spike: true },
+      { x: 550,  type: 'bottom', h: 150, spike: true },
+      { x: 800,  type: 'top',    h: 180, spike: true },
+      { x: 1000, type: 'bottom', h: 180, spike: true },
+      { x: 1200, type: 'top',    h: 160, spike: false },
+      { x: 1200, type: 'bottom', h: 160, spike: true },
+      { x: 1450, type: 'top',    h: 200, spike: true },
+      { x: 1650, type: 'bottom', h: 200, spike: true },
+
+      { x: 1900, type: 'portalCube' },
+
+      { x: 2250, type: 'floorSpike' },
+      { x: 2300, type: 'floorSpike' },
+      { x: 2500, type: 'ceilingSpike' },
+      { x: 2700, type: 'floorBlock' },
+      { x: 2800, type: 'floorSpike' },
+      { x: 2950, type: 'floorSpike' },
+
+      { x: 3200, type: 'portalWave' },
+
+      { x: 3550, type: 'top',    h: 170, spike: true },
+      { x: 3550, type: 'bottom', h: 160, spike: true },
+      { x: 3800, type: 'top',    h: 220, spike: false },
+      { x: 3800, type: 'bottom', h: 80,  spike: true },
+
+      { x: 4100, type: 'portalCube' },
+
+      { x: 4450, type: 'floorSpike' },
+      { x: 4650, type: 'floorSpike' },
+      { x: 4700, type: 'floorSpike' },
+      { x: 4900, type: 'floorBlock' },
+      { x: 5000, type: 'floorSpike' },
+      { x: 5200, type: 'ceilingSpike' },
+      { x: 5400, type: 'floorSpike' },
+      { x: 5450, type: 'floorSpike' },
+      { x: 5650, type: 'floorBlock' },
+      { x: 5750, type: 'floorSpike' },
+      { x: 5950, type: 'ceilingSpike' },
+
+      { x: 6250, type: 'portalWave' },
+
+      { x: 6600, type: 'top',    h: 190, spike: true },
+      { x: 6600, type: 'bottom', h: 140, spike: true },
+      { x: 6850, type: 'top',    h: 230, spike: false },
+      { x: 6850, type: 'bottom', h: 70,  spike: true },
+      { x: 7100, type: 'bottom', h: 230, spike: false },
+      { x: 7100, type: 'top',    h: 70,  spike: true },
+      { x: 7350, type: 'top',    h: 180, spike: true },
+      { x: 7350, type: 'bottom', h: 180, spike: true },
+
+      { x: 7650, type: 'portalCube' },
+
+      { x: 8000, type: 'floorSpike' },
+      { x: 8050, type: 'floorSpike' },
+      { x: 8250, type: 'floorBlock' },
+      { x: 8350, type: 'floorSpike' },
+      { x: 8550, type: 'ceilingSpike' },
+      { x: 8750, type: 'floorSpike' },
+      { x: 8800, type: 'floorSpike' },
+      { x: 9000, type: 'floorBlock' },
+      { x: 9100, type: 'floorSpike' },
+      { x: 9300, type: 'ceilingSpike' },
+      { x: 9500, type: 'floorSpike' },
+      { x: 9550, type: 'floorSpike' },
+      { x: 9750, type: 'floorBlock' },
+      { x: 9850, type: 'floorSpike' },
+      { x: 10050, type: 'ceilingSpike' },
+      { x: 10250, type: 'floorSpike' },
+      { x: 10300, type: 'floorSpike' },
+    ]
+  }
+];
+
+let currentLevelIndex = 0;
+let levelLength = levelsData[0].length;
+
+let spawnQueue = [];
+let activeObstacles = [];
+let activePortals = [];
+
+function buildSpawnQueue() {
+  spawnQueue = levelsData[currentLevelIndex].design.map(o => ({ ...o, spawned: false }));
+  activeObstacles = [];
+  activePortals = [];
+}
+
+// =====================================================
+// MENÚ DE NIVELES / INICIO
+// =====================================================
+function renderLevelMenu() {
+  const list = document.getElementById('levelList');
+  list.innerHTML = '';
+  levelsData.forEach((lvl, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'levelBtn';
+    btn.innerHTML = `<span>${lvl.name} · ${lvl.subtitle}</span><span class="levelBadge">JUGAR ▶</span>`;
+    btn.onclick = () => beginLevel(i);
+    list.appendChild(btn);
+  });
+}
+
+function beginLevel(idx) {
+  currentLevelIndex = idx;
+  levelLength = levelsData[idx].length;
+  attempts = 1;
+  attemptEl.textContent = levelsData[idx].name;
+  attemptsCounter.textContent = 'Intentos: 1';
+  points = 0;
+  pointsHud.textContent = '💎 0';
+  totalDistance = 0;
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+
+  playerY = GAME_H / 2 - PLAYER_SIZE / 2;
+  holding = false;
+  angle = 0;
+  velocityY = 0;
+  onGround = false;
+  cubeRotation = 0;
+  rotating = false;
+  doubleJumpUsed = false;
+  pendingJumps = 0;
+  portalCooldown = 0;
+  mode = 'wave';
+  player.classList.remove('cubeMode');
+  player.style.top = playerY + 'px';
+  player.style.transform = 'rotate(0deg)';
+  modeIndicator.textContent = 'WAVE';
+  modeIndicator.classList.remove('cube');
+
+  startScreen.style.display = 'none';
+  started = true;
+  gameOver = false;
+  buildSpawnQueue();
+  startMusic();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function goToMenu() {
+  stopMusic();
+  started = false;
+  gameOver = true;
+  activeObstacles.forEach(o => o.el.remove());
+  activeObstacles = [];
+  activePortals.forEach(p => p.el.remove());
+  activePortals = [];
+  document.querySelectorAll('.waveTrail, .cubeTrail').forEach(e => e.remove());
+  message.style.display = 'none';
+  renderLevelMenu();
+  startScreen.style.display = 'flex';
+}
+
+function nextLevel() {
+  if (currentLevelIndex + 1 < levelsData.length) {
+    message.style.display = 'none';
+    beginLevel(currentLevelIndex + 1);
+  } else {
+    goToMenu();
+  }
+}
+
+renderLevelMenu();
+
+// =====================================================
+// CONTROLES
+// =====================================================
+function pressInput() {
+  if (!started || gameOver) return;
+  holding = true;
+  // En modo cubo, acumulamos un salto pendiente
+  if (mode === 'cube' && portalCooldown <= 0) {
+    pendingJumps++;
+    // Evitar acumulación excesiva
+    if (pendingJumps > 2) pendingJumps = 2;
+  }
+}
+function releaseInput() {
+  holding = false;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (!e.repeat) pressInput();
+  }
+  if (e.code === 'KeyR') { e.preventDefault(); restart(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); releaseInput(); }
+});
+game.addEventListener('mousedown', pressInput);
+game.addEventListener('mouseup', releaseInput);
+game.addEventListener('mouseleave', releaseInput);
+game.addEventListener('touchstart', e => { e.preventDefault(); pressInput(); });
+game.addEventListener('touchend', e => { e.preventDefault(); releaseInput(); });
+
+// =====================================================
+// ESTELA
+// =====================================================
+let trailTimer = 0;
+function spawnTrail() {
+  if (mode === 'wave') {
+    const t = document.createElement('div');
+    t.classList.add('waveTrail');
+    const cx = PLAYER_X + PLAYER_SIZE / 2;
+    const cy = playerY + PLAYER_SIZE / 2;
+    t.style.left = (cx - 2) + 'px';
+    t.style.top = (cy - 2) + 'px';
+    const isGoingUp = holding;
+    t.style.background = isGoingUp ? '#fff' : '#ff2d95';
+    t.style.boxShadow = isGoingUp
+      ? '0 0 10px #fff, 0 0 20px #ff2d95'
+      : '0 0 10px #ff2d95, 0 0 20px #ff0080';
+    game.appendChild(t);
+    requestAnimationFrame(() => {
+      const driftY = isGoingUp ? 8 : -8;
+      t.style.transition = 'all 0.35s ease-out';
+      t.style.transform = `translate(-20px, ${driftY}px) scale(0.3)`;
+      t.style.opacity = '0';
+    });
+    setTimeout(() => t.remove(), 350);
+  } else {
+    const t = document.createElement('div');
+    t.classList.add('cubeTrail');
+    t.style.left = PLAYER_X + 'px';
+    t.style.top = playerY + 'px';
+    game.appendChild(t);
+    requestAnimationFrame(() => {
+      t.style.transition = 'all 0.3s ease-out';
+      t.style.opacity = '0';
+      t.style.transform = 'scale(0.5)';
+    });
+    setTimeout(() => t.remove(), 300);
+  }
+}
+
+// =====================================================
+// CREAR OBSTÁCULOS
+// =====================================================
+function createObstacleEl(o) {
+  let el;
+
+  if (o.type === 'portalCube' || o.type === 'portalWave') {
+    el = document.createElement('div');
+    el.classList.add('portal');
+    el.classList.add(o.type === 'portalCube' ? 'cubePortal' : 'wavePortal');
+    const icon = document.createElement('div');
+    icon.className = 'portalIcon';
+    icon.textContent = o.type === 'portalCube' ? '◼' : '➜';
+    el.appendChild(icon);
+    el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+    el.style.top = (GAME_H / 2 - 70) + 'px';
+    game.appendChild(el);
+    o.el = el;
+    o.width = 60;
+    o.triggered = false;
+    activePortals.push(o);
+    return;
+  }
+
+  if (o.type === 'floorSpike') {
+    el = document.createElement('div');
+    el.classList.add('floorSpike');
+    el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+    el.style.bottom = WALL_BOTTOM + 'px';
+    game.appendChild(el);
+    o.el = el;
+    o.width = 50;
+    o.height = 50;
+    activeObstacles.push(o);
+    return;
+  }
+
+  if (o.type === 'ceilingSpike') {
+    el = document.createElement('div');
+    el.classList.add('ceilingSpike');
+    el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+    el.style.top = WALL_TOP + 'px';
+    game.appendChild(el);
+    o.el = el;
+    o.width = 50;
+    o.height = 50;
+    activeObstacles.push(o);
+    return;
+  }
+
+  if (o.type === 'floorBlock') {
+    el = document.createElement('div');
+    el.classList.add('floorBlock');
+    el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+    el.style.bottom = WALL_BOTTOM + 'px';
+    game.appendChild(el);
+    o.el = el;
+    o.width = 50;
+    o.height = 50;
+    activeObstacles.push(o);
+    return;
+  }
+
+  el = document.createElement('div');
+  el.classList.add('obstacle');
+  if (o.spike) el.classList.add(o.type === 'top' ? 'spikeDown' : 'spikeUp');
+  el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+  el.style.width = '50px';
+  el.style.height = o.h + 'px';
+  if (o.type === 'top') {
+    el.style.top = WALL_TOP + 'px';
+  } else {
+    el.style.bottom = WALL_BOTTOM + 'px';
+  }
+  game.appendChild(el);
+  o.el = el;
+  o.width = 50;
+  o.side = o.type;
+  activeObstacles.push(o);
+}
+
+// =====================================================
+// LOOP
+// =====================================================
+let lastTime = performance.now();
+function loop(now) {
+  if (!started || gameOver) return;
+
+  let dt = (now - lastTime) / 16.67;
+  if (dt > 3) dt = 3;
+  lastTime = now;
+
+  // Reducir cooldown del portal
+  if (portalCooldown > 0) portalCooldown -= dt;
+
+  // ============================================
+  // FÍSICA SEGÚN EL MODO
+  // ============================================
+  if (mode === 'wave') {
+    // WAVE: vuela
+    if (holding) {
+      playerY -= WAVE_UP * dt;
+      angle = -32;
+    } else {
+      playerY += WAVE_DOWN * dt;
+      angle = 32;
+    }
+
+    if (playerY < PLAY_TOP) { playerY = PLAY_TOP; die(); return; }
+    if (playerY + PLAYER_SIZE > PLAY_BOTTOM) {
+      playerY = PLAY_BOTTOM - PLAYER_SIZE; die(); return;
+    }
+
+    player.style.top = playerY + 'px';
+    player.style.transform = `rotate(${angle}deg)`;
+
+  } else {
+    // CUBO: gravedad + salto clásico
+
+    // Si hay saltos pendientes, saltamos: uno desde el suelo,
+    // y uno extra en el aire (doble salto) si aún no se ha usado.
+    if (pendingJumps > 0) {
+      if (onGround) {
+        velocityY = -JUMP_POWER; // negativo = hacia arriba (Y crece hacia abajo)
+        onGround = false;
+        rotating = true;
+        doubleJumpUsed = false;
+        pendingJumps--;
+        playJumpSound();
+      } else if (!doubleJumpUsed) {
+        velocityY = -JUMP_POWER;
+        doubleJumpUsed = true;
+        rotating = true;
+        pendingJumps--;
+        playJumpSound();
+      } else {
+        // Ya no quedan saltos disponibles hasta aterrizar
+        pendingJumps = 0;
+      }
+    }
+
+    if (!onGround) {
+      playerY += velocityY * dt;
+      velocityY += GRAVITY * dt; // la gravedad frena la subida y acelera la caída
+
+      const groundLevel = PLAY_BOTTOM - PLAYER_SIZE;
+      if (playerY >= groundLevel) {
+        playerY = groundLevel;
+        velocityY = 0;
+        onGround = true;
+        rotating = false;
+        doubleJumpUsed = false;
+        cubeRotation = Math.round(cubeRotation / 90) * 90;
+      }
+      if (playerY < PLAY_TOP) {
+        playerY = PLAY_TOP;
+        if (velocityY < 0) velocityY = 0;
+      }
+    }
+
+    if (rotating) {
+      cubeRotation += 7 * dt;
+    }
+
+    player.style.top = playerY + 'px';
+    player.style.transform = `rotate(${cubeRotation}deg)`;
+  }
+
+  // ---- ESTELA ----
+  trailTimer++;
+  if (trailTimer >= (mode === 'wave' ? 2 : 4)) {
+    trailTimer = 0;
+    spawnTrail();
+  }
+
+  // ---- AVANZAR ----
+  totalDistance += SPEED * dt;
+
+  // ---- SPAWN ----
+  for (const o of spawnQueue) {
+    if (!o.spawned && o.x - totalDistance < 900) {
+      o.spawned = true;
+      createObstacleEl(o);
+    }
+  }
+
+  // ---- MOVER OBSTÁCULOS ----
+  for (let i = activeObstacles.length - 1; i >= 0; i--) {
+    const o = activeObstacles[i];
+    o.el.style.left = (o.x - totalDistance + PLAYER_X) + 'px';
+    if (o.x - totalDistance + PLAYER_X < -300) {
+      o.el.remove();
+      activeObstacles.splice(i, 1);
+    }
+  }
+
+  // ---- PORTALES ----
+  for (let i = activePortals.length - 1; i >= 0; i--) {
+    const p = activePortals[i];
+    const px = p.x - totalDistance + PLAYER_X;
+    p.el.style.left = px + 'px';
+
+    if (!p.triggered && px + p.width > PLAYER_X && px < PLAYER_X + PLAYER_SIZE) {
+      p.triggered = true;
+      playPortalSound();
+      if (p.type === 'portalCube') setMode('cube');
+      else setMode('wave');
+    }
+
+    if (px < -300) {
+      p.el.remove();
+      activePortals.splice(i, 1);
+    }
+  }
+
+  // ---- COLISIONES ----
+  checkCollisions();
+
+  // ---- PUNTOS ----
+  points += 1;
+  pointsHud.textContent = '💎 ' + points;
+
+  // ---- PROGRESO ----
+  const prog = Math.min(100, (totalDistance / levelLength) * 100);
+  progressFill.style.width = prog + '%';
+  progressText.textContent = Math.floor(prog) + '%';
+
+  if (totalDistance >= levelLength) { winGame(); return; }
+
+  requestAnimationFrame(loop);
+}
+
+// =====================================================
+// CAMBIO DE MODO
+// =====================================================
+function setMode(newMode) {
+  if (mode === newMode) return;
+  mode = newMode;
+
+  if (mode === 'cube') {
+    player.classList.add('cubeMode');
+    modeIndicator.textContent = 'CUBO';
+    modeIndicator.classList.add('cube');
+
+    // Colocar el cubo justo sobre el suelo
+    playerY = PLAY_BOTTOM - PLAYER_SIZE;
+    velocityY = 0;
+    onGround = true;
+    cubeRotation = 0;
+    rotating = false;
+    pendingJumps = 0;
+    doubleJumpUsed = false;
+    // Cooldown para que el clic del portal no cuente como salto
+    portalCooldown = 20; // ~330ms a 60fps
+    player.style.top = playerY + 'px';
+    player.style.transform = 'rotate(0deg)';
+
+  } else {
+    player.classList.remove('cubeMode');
+    modeIndicator.textContent = 'WAVE';
+    modeIndicator.classList.remove('cube');
+
+    playerY = GAME_H / 2 - PLAYER_SIZE / 2;
+    velocityY = 0;
+    onGround = false;
+    angle = 0;
+    pendingJumps = 0;
+    portalCooldown = 20;
+    player.style.top = playerY + 'px';
+    player.style.transform = 'rotate(0deg)';
+  }
+}
+
+// =====================================================
+// COLISIONES
+// =====================================================
+function checkCollisions() {
+  const pLeft = PLAYER_X + 8;
+  const pRight = PLAYER_X + PLAYER_SIZE - 8;
+  const pTop = playerY + 8;
+  const pBottom = playerY + PLAYER_SIZE - 8;
+
+  for (const o of activeObstacles) {
+    const ox = o.x - totalDistance + PLAYER_X;
+    const oLeft = ox + 3;
+    const oRight = ox + o.width - 3;
+
+    let oTop, oBottom;
+
+    if (o.type === 'floorSpike') {
+      const cx = ox + 25;
+      const hitLeft = cx - 14;
+      const hitRight = cx + 14;
+      oBottom = GAME_H - WALL_BOTTOM;
+      oTop = oBottom - 38;
+      if (pRight > hitLeft && pLeft < hitRight && pBottom > oTop && pTop < oBottom) {
+        die();
+        return;
+      }
+      continue;
+    }
+
+    if (o.type === 'ceilingSpike') {
+      const cx = ox + 25;
+      const hitLeft = cx - 14;
+      const hitRight = cx + 14;
+      oTop = WALL_TOP;
+      oBottom = WALL_TOP + 38;
+      if (pRight > hitLeft && pLeft < hitRight && pBottom > oTop && pTop < oBottom) {
+        die();
+        return;
+      }
+      continue;
+    }
+
+    if (o.type === 'floorBlock') {
+      oBottom = GAME_H - WALL_BOTTOM;
+      oTop = oBottom - 50;
+
+      if (
+        mode === 'cube' &&
+        velocityY >= 0 &&
+        pBottom >= oTop - 15 && pBottom <= oTop + 20 &&
+        pRight > oLeft + 5 && pLeft < oRight - 5
+      ) {
+        playerY = oTop - PLAYER_SIZE;
+        velocityY = 0;
+        onGround = true;
+        rotating = false;
+        doubleJumpUsed = false;
+        cubeRotation = Math.round(cubeRotation / 90) * 90;
+        player.style.top = playerY + 'px';
+        player.style.transform = `rotate(${cubeRotation}deg)`;
+        continue;
+      }
+
+      if (pRight > oLeft && pLeft < oRight && pBottom > oTop && pTop < oBottom) {
+        die();
+        return;
+      }
+      continue;
+    }
+
+    if (o.type === 'top') {
+      oTop = WALL_TOP;
+      oBottom = WALL_TOP + o.h;
+    } else {
+      oBottom = GAME_H - WALL_BOTTOM;
+      oTop = oBottom - o.h;
+    }
+
+    if (pRight > oLeft && pLeft < oRight && pBottom > oTop && pTop < oBottom) {
+      die();
+      return;
+    }
+  }
+}
+
+// =====================================================
+// MUERTE / VICTORIA
+// =====================================================
+function die() {
+  if (gameOver) return;
+  gameOver = true;
+  playDeathSound();
+  stopMusic();
+  spawnDeathParticles();
+  const prog = Math.min(100, (totalDistance / levelLength) * 100);
+  document.getElementById('msgTitle').textContent = '¡INTENTO FALLIDO!';
+  document.getElementById('msgTitle').style.color = '#ff2d95';
+  msgText.innerHTML = `Llegaste al <b style="color:#ff2d95">${Math.floor(prog)}%</b><br>Puntos: <b>${points}</b>`;
+  document.getElementById('retryBtn').style.display = 'inline-block';
+  document.getElementById('nextLevelBtn').style.display = 'none';
+  message.style.display = 'flex';
+}
+
+function spawnDeathParticles() {
+  const cx = PLAYER_X + PLAYER_SIZE / 2;
+  const cy = playerY + PLAYER_SIZE / 2;
+  const colors = mode === 'cube' ? ['#ffdd00', '#ff8800'] : ['#ff2d95', '#fff'];
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.style.position = 'absolute';
+    p.style.width = '8px';
+    p.style.height = '8px';
+    p.style.background = colors[i % 2];
+    p.style.borderRadius = '50%';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    p.style.zIndex = '15';
+    p.style.pointerEvents = 'none';
+    p.style.boxShadow = '0 0 10px ' + colors[i % 2];
+    game.appendChild(p);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 60 + Math.random() * 120;
+    const dx = Math.cos(ang) * dist;
+    const dy = Math.sin(ang) * dist;
+    requestAnimationFrame(() => {
+      p.style.transition = 'all 0.8s ease-out';
+      p.style.transform = `translate(${dx}px, ${dy}px) scale(0.2)`;
+      p.style.opacity = '0';
+    });
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+function winGame() {
+  gameOver = true;
+  stopMusic();
+  const isLast = currentLevelIndex + 1 >= levelsData.length;
+  msgText.innerHTML = `¡${levelsData[currentLevelIndex].name} COMPLETADO! 🎉<br>Puntos: <b>${points}</b>`;
+  document.getElementById('msgTitle').textContent = '¡VICTORIA!';
+  document.getElementById('msgTitle').style.color = '#00ff88';
+  document.getElementById('retryBtn').style.display = 'inline-block';
+  document.getElementById('nextLevelBtn').style.display = isLast ? 'none' : 'inline-block';
+  document.getElementById('nextLevelBtn').textContent = isLast ? 'SIGUIENTE NIVEL' : 'SIGUIENTE NIVEL ▶';
+  message.style.display = 'flex';
+}
+
+// =====================================================
+// REINICIO
+// =====================================================
+function restart() {
+  activeObstacles.forEach(o => o.el.remove());
+  activeObstacles = [];
+  activePortals.forEach(p => p.el.remove());
+  activePortals = [];
+  document.querySelectorAll('.waveTrail, .cubeTrail').forEach(e => e.remove());
+
+  playerY = GAME_H / 2 - PLAYER_SIZE / 2;
+  holding = false;
+  angle = 0;
+  velocityY = 0;
+  onGround = false;
+  cubeRotation = 0;
+  rotating = false;
+  pendingJumps = 0;
+  doubleJumpUsed = false;
+  portalCooldown = 0;
+  mode = 'wave';
+  player.classList.remove('cubeMode');
+  player.style.top = playerY + 'px';
+  player.style.transform = 'rotate(0deg)';
+  modeIndicator.textContent = 'WAVE';
+  modeIndicator.classList.remove('cube');
+
+  gameOver = false;
+  points = 0;
+  totalDistance = 0;
+  pointsHud.textContent = '💎 0';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+
+  attempts++;
+  attemptEl.textContent = levelsData[currentLevelIndex].name;
+  attemptsCounter.textContent = 'Intentos: ' + attempts;
+
+  message.style.display = 'none';
+  document.getElementById('msgTitle').textContent = '¡INTENTO FALLIDO!';
+  document.getElementById('msgTitle').style.color = '#ff2d95';
+
+  buildSpawnQueue();
+  startMusic();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+player.style.top = playerY + 'px';
+window.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>
